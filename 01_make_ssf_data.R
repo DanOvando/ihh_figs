@@ -55,15 +55,17 @@ region_lookup <- data %>%
   select(country_name, region) %>%
   unique()
 
+nutrition_name <- "20230811 Nutrition Dan corrected_AT+XB.xlsx"
+
 portions_marine_inland <-
-  read_xlsx(here("data", "20230811 Nutrition Dan corrected.xlsx"),
+  read_xlsx(here("data", nutrition_name),
             sheet = "Sheet1",
             na = "NA") %>%
   rename(country_name = country) %>%
   janitor::clean_names()
 
 portions_lsf_ssf <-
-  read_xlsx(here("data", "20230811 Nutrition Dan corrected.xlsx"),
+  read_xlsx(here("data", nutrition_name),
             sheet = "Sheet2",
             na = "NA") %>%
   rename(country_name = country) %>%
@@ -359,7 +361,7 @@ metric_means <- long_metrics %>%
   summarise(mean_value = mean(value, na.rm = TRUE))
 
 write_csv(
-  metrics |>  select(country_name, region, starts_with("ssf_v"), contains("ssf_"))
+  metrics |>  select(country_name, region, catch, starts_with("ssf_v"), contains("ssf_"))
   ,
   file = file.path(fig_dir, "metrics.csv")
 )
@@ -374,3 +376,20 @@ catch_data <- data |>
   select(country_name, region, catch, contains("catch_ssf"))
 
 write_csv(catch_data, file = file.path(fig_dir, "catch_data.csv"))
+
+
+un_region_portions <- portions_marine_inland %>%
+  mutate(
+    marine = tolower(marine_inland) == "marine",
+    daily_portions_domestic = daily_portions_domestic / 1e6
+  ) %>%
+  group_by(region) %>%
+  mutate(has_data = !is.na(daily_portions_domestic)) |>
+  summarise(
+    regional_portions = sum(daily_portions_domestic, na.rm = TRUE),
+    regional_portions_marine =  sum(daily_portions_domestic[marine], na.rm = TRUE),
+    regional_portions_inland =  sum(daily_portions_domestic[!marine], na.rm = TRUE),
+    n = n_distinct(country_name[has_data])
+  )
+
+write_csv(un_region_portions,file.path(fig_dir,"regional_portions_data.csv"))
