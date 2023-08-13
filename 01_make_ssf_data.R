@@ -2,7 +2,7 @@ source("00_setup.R") #setup libraries etc.
 
 
 # load data ---------------------------------------------------------------
-message("built using data https://doi.org/10.5281/zenodo.8239657")
+message("built using data https://doi.org/10.5281/zenodo.8243546")
 
 countries <-
   rnaturalearth::ne_download(
