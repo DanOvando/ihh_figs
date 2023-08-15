@@ -353,12 +353,7 @@ write_csv(
     country_name,
     region,
     catch,
-    starts_with("ssf_v"),
-    ssf_employment_w,
-    harvest_marine_ssf_w,
-    harvest_inland_ssf_w,
-    ssf_employment,
-    ssf_livelihoods
+    starts_with("ssf_v")
   )
   ,
   file = file.path(fig_dir, "metrics.csv")
