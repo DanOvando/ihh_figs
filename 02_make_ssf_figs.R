@@ -342,21 +342,8 @@ catch_map_plot
 
 #| label: women-data
 
-un_region_totals <- metrics %>%
-  group_by(region) %>%
-  mutate(has_data = !is.na(ssf_employment_w)) |>
-  summarise(
-    ssf_employment_w = sum(ssf_employment_w, na.rm = TRUE),
-    ssf_harvest_marine_w =  sum(harvest_marine_ssf_w, na.rm = TRUE),
-    ssf_harvest_inland_w =  sum(harvest_inland_ssf_w, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
-  ) %>%
-  filter(!is.na(region))
-
-
-#join together
 ssf_w_employment <- un_regions %>%
-  left_join(un_region_totals, by = c("region_un" = "region")) %>%
+  left_join(regional_employment_w_data, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_employment_w))
 
 
@@ -420,20 +407,11 @@ w_map_plot
 #| eval: true
 
 
-un_region_totals <- metrics %>%
-  group_by(region) %>%
-  mutate(has_data = !is.na(ssf_employment)) |>
-  summarise(
-    ssf_emp = sum(ssf_employment, na.rm  = TRUE),
-    ssf_emp_inland =  sum(ssf_employment, na.rm = TRUE),
-    ssf_emp_marine =  sum(ssf_employment, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
-  ) %>%
-  filter(!is.na(region))
+
 
 #join together
 ssf_emp <- un_regions %>%
-  left_join(un_region_totals, by = c("region_un" = "region")) %>%
+  left_join(regional_employment_data, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_emp))
 
 
@@ -496,20 +474,11 @@ emp_map_plot
 #| eval: true
 
 
-un_region_totals <- metrics %>%
-  group_by(region) %>%
-  mutate(has_data = !is.na(ssf_livelihoods)) |>
-  summarise(
-    ssf_live = sum(ssf_livelihoods, na.rm = TRUE),
-    ssf_live_inland =  sum(ssf_livelihoods, na.rm = TRUE),
-    ssf_live_marine =  sum(ssf_livelihoods, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
-  ) %>%
-  filter(!is.na(region))
+
 
 #join together
 ssf_live <- un_regions %>%
-  left_join(un_region_totals, by = c("region_un" = "region")) %>%
+  left_join(regional_livelihood_data, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_live))
 
 

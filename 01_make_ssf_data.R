@@ -394,6 +394,20 @@ regional_catch_data <- catch_data %>%
 write_csv(regional_catch_data, file = file.path(fig_dir, "regional_catch_data.csv"))
 
 
+regional_employment_w_data <- metrics %>%
+  group_by(region) %>%
+  mutate(has_data = !is.na(ssf_employment_w)) |>
+  summarise(
+    ssf_employment_w = sum(ssf_employment_w, na.rm = TRUE),
+    ssf_harvest_marine_w =  sum(harvest_marine_ssf_w, na.rm = TRUE),
+    ssf_harvest_inland_w =  sum(harvest_inland_ssf_w, na.rm = TRUE),
+    n = n_distinct(country_name[has_data])
+  ) %>%
+  filter(!is.na(region))
+
+write_csv(regional_employment_w_data, file = file.path(fig_dir, "regional_employment_w_data.csv"))
+
+
 un_region_portions <- portions_marine_inland %>%
   mutate(
     marine = tolower(marine_inland) == "marine",
@@ -410,3 +424,34 @@ un_region_portions <- portions_marine_inland %>%
 
 write_csv(un_region_portions,
           file.path(fig_dir, "regional_portions_data.csv"))
+
+
+regional_employment_data <- metrics %>%
+  group_by(region) %>%
+  mutate(has_data = !is.na(ssf_employment)) |>
+  summarise(
+    ssf_emp = sum(ssf_employment, na.rm  = TRUE),
+    ssf_emp_inland =  sum(ssf_employment, na.rm = TRUE),
+    ssf_emp_marine =  sum(ssf_employment, na.rm = TRUE),
+    n = n_distinct(country_name[has_data])
+  ) %>%
+  filter(!is.na(region))
+
+write_csv(regional_employment_data,
+          file.path(fig_dir, "regional_employment_data.csv"))
+
+regional_livelihood_data <- metrics %>%
+  group_by(region) %>%
+  mutate(has_data = !is.na(ssf_livelihoods)) |>
+  summarise(
+    ssf_live = sum(ssf_livelihoods, na.rm = TRUE),
+    ssf_live_inland =  sum(ssf_livelihoods, na.rm = TRUE),
+    ssf_live_marine =  sum(ssf_livelihoods, na.rm = TRUE),
+    n = n_distinct(country_name[has_data])
+  ) %>%
+  filter(!is.na(region))
+
+write_csv(regional_livelihood_data,
+          file.path(fig_dir, "regional_livelihood_data.csv"))
+
+
