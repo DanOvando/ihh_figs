@@ -275,24 +275,8 @@ map_foo <-
 
 
 # calculate ssf catch statistics
-un_region_ssf_catch <- catch_data %>%
-  group_by(region) %>%
-  mutate(has_data = !is.na(catch_ssf)) |>
-  mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
-  summarise(
-    ssf_catch = sum(catch_ssf, na.rm = TRUE),
-    ssf_catch_marine =  sum(catch_ssf_marine, na.rm = TRUE),
-    ssf_catch_inland =  sum(catch_ssf_inland, na.rm = TRUE),
-    p_marine = mean(
-      catch_ssf_marine / (catch_ssf_inland + catch_ssf_marine + 1e-9),
-      na.rm = TRUE
-    ),
-    n = n_distinct(country_name[has_data])
-  )  |>
-  filter(!is.na(region))
-#join together
 un_region_ssf_catch <- un_regions %>%
-  left_join(un_region_ssf_catch, by = c("region_un" = "region")) %>%
+  left_join(regional_catch_data, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_catch))
 
 berhman <-
@@ -441,8 +425,8 @@ un_region_totals <- metrics %>%
   mutate(has_data = !is.na(ssf_employment)) |>
   summarise(
     ssf_emp = sum(ssf_employment, na.rm  = TRUE),
-    ssf_emp_inland =  sum(ssf_employment_inland, na.rm = TRUE),
-    ssf_emp_marine =  sum(ssf_employment_marine, na.rm = TRUE),
+    ssf_emp_inland =  sum(ssf_employment, na.rm = TRUE),
+    ssf_emp_marine =  sum(ssf_employment, na.rm = TRUE),
     n = n_distinct(country_name[has_data])
   ) %>%
   filter(!is.na(region))
