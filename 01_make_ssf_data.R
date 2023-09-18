@@ -348,16 +348,6 @@ metric_means <- long_metrics %>%
   group_by(metric) %>%
   summarise(mean_value = mean(value, na.rm = TRUE))
 
-write_csv(
-  metrics |>  select(
-    country_name,
-    region,
-    catch,
-    starts_with("ssf_v")
-  )
-  ,
-  file = file.path(fig_dir, "metrics.csv")
-)
 
 write_csv(regional_total_metrics,
           file = file.path(fig_dir, "regional_total_metrics.csv"))
