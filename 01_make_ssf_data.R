@@ -354,6 +354,8 @@ metric_means <- long_metrics %>%
 #   file = file.path(fig_dir, "metrics.csv")
 # )
 
+
+
 write_csv(regional_total_metrics,
           file = file.path(fig_dir, "regional_total_metrics.csv"))
 
