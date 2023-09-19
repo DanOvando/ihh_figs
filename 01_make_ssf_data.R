@@ -348,16 +348,11 @@ metric_means <- long_metrics %>%
   group_by(metric) %>%
   summarise(mean_value = mean(value, na.rm = TRUE))
 
-write_csv(
-  metrics |>  select(
-    country_name,
-    region,
-    catch,
-    starts_with("ssf_v")
-  )
-  ,
-  file = file.path(fig_dir, "metrics.csv")
-)
+# write_csv(
+#   metrics |>  select(country_name, region, starts_with("ssf_v"), contains("ssf_"),-catch_ssf_inland,-catch_ssf_marine)
+#   ,
+#   file = file.path(fig_dir, "metrics.csv")
+# )
 
 write_csv(regional_total_metrics,
           file = file.path(fig_dir, "regional_total_metrics.csv"))
@@ -366,11 +361,9 @@ write_csv(regional_total_metrics,
 write_csv(total_metrics, file = file.path(fig_dir, "total_metrics.csv"))
 
 catch_data <- data |>
-  ungroup() |> 
-  mutate(country_name = forcats::fct_anon(country_name)) |> 
   select(country_name, region, catch, contains("catch_ssf"))
 
-regional_catch_data <- catch_data %>%
+un_region_ssf_catch <- catch_data %>%
   group_by(region) %>%
   mutate(has_data = !is.na(catch_ssf)) |>
   mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
@@ -386,10 +379,13 @@ regional_catch_data <- catch_data %>%
   )  |>
   filter(!is.na(region))
 
-write_csv(regional_catch_data, file = file.path(fig_dir, "regional_catch_data.csv"))
+
+# write_csv(catch_data, file = file.path(fig_dir, "catch_data.csv"))
+
+write_csv(un_region_ssf_catch, file = file.path(fig_dir, "un_region_ssf_catch.csv"))
 
 
-regional_employment_w_data <- metrics %>%
+employment_w_un_region_totals <- metrics %>%
   group_by(region) %>%
   mutate(has_data = !is.na(ssf_employment_w)) |>
   summarise(
@@ -400,42 +396,24 @@ regional_employment_w_data <- metrics %>%
   ) %>%
   filter(!is.na(region))
 
-write_csv(regional_employment_w_data, file = file.path(fig_dir, "regional_employment_w_data.csv"))
+write_csv(employment_w_un_region_totals, file = file.path(fig_dir, "employment_w_un_region_totals.csv"))
 
 
-un_region_portions <- portions_marine_inland %>%
-  mutate(
-    marine = tolower(marine_inland) == "marine",
-    daily_portions_domestic = daily_portions_domestic / 1e6
-  ) %>%
-  group_by(region) %>%
-  mutate(has_data = !is.na(daily_portions_domestic)) |>
-  summarise(
-    regional_portions = sum(daily_portions_domestic, na.rm = TRUE),
-    regional_portions_marine =  sum(daily_portions_domestic[marine], na.rm = TRUE),
-    regional_portions_inland =  sum(daily_portions_domestic[!marine], na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
-  )
-
-write_csv(un_region_portions,
-          file.path(fig_dir, "regional_portions_data.csv"))
-
-
-regional_employment_data <- metrics %>%
+emp_un_region_totals <- metrics %>%
   group_by(region) %>%
   mutate(has_data = !is.na(ssf_employment)) |>
   summarise(
     ssf_emp = sum(ssf_employment, na.rm  = TRUE),
-    ssf_emp_inland =  sum(ssf_employment, na.rm = TRUE),
-    ssf_emp_marine =  sum(ssf_employment, na.rm = TRUE),
+    ssf_emp_inland =  sum(ssf_employment_inland, na.rm = TRUE),
+    ssf_emp_marine =  sum(ssf_employment_marine, na.rm = TRUE),
     n = n_distinct(country_name[has_data])
   ) %>%
   filter(!is.na(region))
 
-write_csv(regional_employment_data,
-          file.path(fig_dir, "regional_employment_data.csv"))
+write_csv(emp_un_region_totals, file = file.path(fig_dir, "emp_un_region_totals.csv"))
 
-regional_livelihood_data <- metrics %>%
+
+live_un_region_totals <- metrics %>%
   group_by(region) %>%
   mutate(has_data = !is.na(ssf_livelihoods)) |>
   summarise(
@@ -446,7 +424,6 @@ regional_livelihood_data <- metrics %>%
   ) %>%
   filter(!is.na(region))
 
-write_csv(regional_livelihood_data,
-          file.path(fig_dir, "regional_livelihood_data.csv"))
+write_csv(live_un_region_totals, file = file.path(fig_dir, "live_un_region_totals.csv"))
 
 

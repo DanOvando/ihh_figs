@@ -275,8 +275,24 @@ map_foo <-
 
 
 # calculate ssf catch statistics
+# un_region_ssf_catch <- catch_data %>%
+#   group_by(region) %>%
+#   mutate(has_data = !is.na(catch_ssf)) |>
+#   mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
+#   summarise(
+#     ssf_catch = sum(catch_ssf, na.rm = TRUE),
+#     ssf_catch_marine =  sum(catch_ssf_marine, na.rm = TRUE),
+#     ssf_catch_inland =  sum(catch_ssf_inland, na.rm = TRUE),
+#     p_marine = mean(
+#       catch_ssf_marine / (catch_ssf_inland + catch_ssf_marine + 1e-9),
+#       na.rm = TRUE
+#     ),
+#     n = n_distinct(country_name[has_data])
+#   )  |>
+#   filter(!is.na(region))
+#join together
 un_region_ssf_catch <- un_regions %>%
-  left_join(regional_catch_data, by = c("region_un" = "region")) %>%
+  left_join(un_region_ssf_catch, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_catch))
 
 berhman <-
@@ -342,8 +358,22 @@ catch_map_plot
 
 #| label: women-data
 
+# un_region_totals <- metrics %>%
+#   group_by(region) %>%
+#   mutate(has_data = !is.na(ssf_employment_w)) |>
+#   summarise(
+#     ssf_employment_w = sum(ssf_employment_w, na.rm = TRUE),
+#     ssf_harvest_marine_w =  sum(harvest_marine_ssf_w, na.rm = TRUE),
+#     ssf_harvest_inland_w =  sum(harvest_inland_ssf_w, na.rm = TRUE),
+#     n = n_distinct(country_name[has_data])
+#   ) %>%
+#   filter(!is.na(region))
+
+
+
+#join together
 ssf_w_employment <- un_regions %>%
-  left_join(regional_employment_w_data, by = c("region_un" = "region")) %>%
+  left_join(employment_w_un_region_totals, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_employment_w))
 
 
@@ -405,13 +435,22 @@ w_map_plot
 
 #| label: fig-emp-map
 #| eval: true
-
-
-
+# 
+# 
+# emp_un_region_totals <- metrics %>%
+#   group_by(region) %>%
+#   mutate(has_data = !is.na(ssf_employment)) |>
+#   summarise(
+#     ssf_emp = sum(ssf_employment, na.rm  = TRUE),
+#     ssf_emp_inland =  sum(ssf_employment_inland, na.rm = TRUE),
+#     ssf_emp_marine =  sum(ssf_employment_marine, na.rm = TRUE),
+#     n = n_distinct(country_name[has_data])
+#   ) %>%
+#   filter(!is.na(region))
 
 #join together
 ssf_emp <- un_regions %>%
-  left_join(regional_employment_data, by = c("region_un" = "region")) %>%
+  left_join(emp_un_region_totals, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_emp))
 
 
@@ -474,11 +513,20 @@ emp_map_plot
 #| eval: true
 
 
-
+# live_un_region_totals <- metrics %>%
+#   group_by(region) %>%
+#   mutate(has_data = !is.na(ssf_livelihoods)) |>
+#   summarise(
+#     ssf_live = sum(ssf_livelihoods, na.rm = TRUE),
+#     ssf_live_inland =  sum(ssf_livelihoods, na.rm = TRUE),
+#     ssf_live_marine =  sum(ssf_livelihoods, na.rm = TRUE),
+#     n = n_distinct(country_name[has_data])
+#   ) %>%
+#   filter(!is.na(region))
 
 #join together
 ssf_live <- un_regions %>%
-  left_join(regional_livelihood_data, by = c("region_un" = "region")) %>%
+  left_join(live_un_region_totals, by = c("region_un" = "region")) %>%
   filter(!is.na(ssf_live))
 
 
@@ -539,23 +587,23 @@ live_map_plot <-
 
 # calculate total portions per region split out by inland vs marine
 
-# un_region_portions <- portions_marine_inland %>%
-#   mutate(
-#     marine = tolower(marine_inland) == "marine",
-#     daily_portions_domestic = daily_portions_domestic / 1e6
-#   ) %>%
-#   group_by(region) %>%
-#   mutate(has_data = !is.na(daily_portions_domestic)) |>
-#   summarise(
-#     regional_portions = sum(daily_portions_domestic, na.rm = TRUE),
-#     regional_portions_marine =  sum(daily_portions_domestic[marine], na.rm = TRUE),
-#     regional_portions_inland =  sum(daily_portions_domestic[!marine], na.rm = TRUE),
-#     n = n_distinct(country_name[has_data])
-#   )
+un_region_portions <- portions_marine_inland %>%
+  mutate(
+    marine = tolower(marine_inland) == "marine",
+    daily_portions_domestic = daily_portions_domestic / 1e6
+  ) %>%
+  group_by(region) %>%
+  mutate(has_data = !is.na(daily_portions_domestic)) |>
+  summarise(
+    regional_portions = sum(daily_portions_domestic, na.rm = TRUE),
+    regional_portions_marine =  sum(daily_portions_domestic[marine], na.rm = TRUE),
+    regional_portions_inland =  sum(daily_portions_domestic[!marine], na.rm = TRUE),
+    n = n_distinct(country_name[has_data])
+  )
 
 #join together
 un_region_portions <- un_regions %>%
-  left_join(regional_portions_data, by = c("region_un" = "region")) %>%
+  left_join(un_region_portions, by = c("region_un" = "region")) %>%
   filter(!is.na(regional_portions))
 
 berhman <-
@@ -661,11 +709,9 @@ region_metric_means <- long_metrics %>%
   ungroup() %>%
   arrange(metric)
 
-countries_per_region <- metrics %>%
+countries_per_region <- data %>%
   group_by(region) %>%
-  count(name = "pool") |> 
-  filter(!is.na(region)) |> 
-  ungroup()
+  count(name = "pool")
 
 
 ssf_contribution_countries <- long_metrics |>
@@ -673,7 +719,7 @@ ssf_contribution_countries <- long_metrics |>
   unique()
 
 
-ssf_contributions_catch_comp <- metrics |>
+ssf_contributions_catch_comp <- data |>
   mutate(in_ssf_contrib = country_name %in% ssf_contribution_countries$country_name) |>
   group_by(region) |>
   summarise(
@@ -682,10 +728,10 @@ ssf_contributions_catch_comp <- metrics |>
   )
 
 
-catches <- metrics |>
+catches <- data |>
   select(region, country_name, catch)
 
-regional_catches <- metrics |>
+regional_catches <- data |>
   group_by(region) |>
   summarise(total_catch = sum(catch, na.rm = TRUE))
 
@@ -913,6 +959,13 @@ ssf_hists_plot <- ssf_hists_data %>%
     top = 1.05,
     on_top = TRUE
   )
+
+a = data |>
+  filter(!is.na(region)) |>
+  group_by(region) |>
+  summarise(catch = sum(catch, na.rm = TRUE)) |>
+  arrange(catch)
+
 
 ssf_hists_fixed_order_plot <- ssf_hists_data %>%
   ggplot(aes(fct_rev(
