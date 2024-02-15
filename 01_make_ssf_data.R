@@ -41,10 +41,45 @@ un_regions <- countries %>%
   filter(sf::st_is_valid(.)) %>%
   janitor::clean_names()
 
-#| label: load-country-data
+mike_global <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "regional") |> 
+  janitor::clean_names()
 
-data <- readr::read_csv(here("data", "20230731IHH_global.csv")) %>%
-  janitor::clean_names() # read in data
+mike_country <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "country") |> 
+  janitor::clean_names() |> 
+  rename(catch_ssf = ssf_catch_preferred_mix) |> 
+  mutate(catch_ssf = catch_ssf / 1e6) |> 
+  pivot_wider(names_from = "source", values_from = "catch_ssf", 
+              names_prefix = "ssf_")
+
+
+
+should_i_stay_or_should_i_go_now <-
+  read_csv(here("data", "mike_catch_estimates_MM.csv")) |>
+  select(country_name, contains("is_na"))
+
+mike_country <- mike_country |> 
+  left_join(should_i_stay_or_should_i_go_now, by = "country_name") |> 
+  mutate(ssf_marine = if_else(is.na(ssf_marine) & !marine_na_is_na, 0,ssf_marine),
+         ssf_inland = if_else(is.na(ssf_inland) & !inland_na_is_na, 0,ssf_inland)) |> 
+  rowwise() |> 
+  mutate(catch_ssf = altsum(ssf_marine, ssf_inland, na.rm = FALSE)) |> 
+  ungroup() 
+
+old_data_headache <- readr::read_csv(here("data", "20230731IHH_global.csv")) %>%
+  janitor::clean_names() |> 
+  select(iso3code, catch) # read in data
+
+fishstat_catch <- readr::read_csv(here("data", "20240207_FAO_FishStat_Catch.csv")) %>%
+  janitor::clean_names() |> 
+  select(-country_name,-region)
+
+
+data <- readr::read_csv(here("data", "20240201_Employ_Livelih_Landvalue.csv")) %>%
+  janitor::clean_names() |> 
+  left_join(mike_country, by = c("iso3code"  = "country_name")) |> 
+  left_join(fishstat_catch, by = "iso3code")
+# warning("using old FAO catch data, fix this when Alba sends new ones")
+  # read in data
 
 berhman <-
   st_crs(
@@ -55,21 +90,25 @@ region_lookup <- data %>%
   select(country_name, region) %>%
   unique()
 
-nutrition_name <- "20230811 Nutrition Dan corrected_AT+XB.xlsx"
+nutrition_name <- "Figure1_nutrition_data.xlsx"
 
 portions_marine_inland <-
   read_xlsx(here("data", nutrition_name),
-            sheet = "Sheet1",
+            sheet = "Fig1a",
             na = "NA") %>%
   rename(country_name = country) %>%
   janitor::clean_names()
 
+write_csv(portions_marine_inland, file = file.path(fig_dir, "portions_marine_inland.csv"))
+
+
 portions_lsf_ssf <-
   read_xlsx(here("data", nutrition_name),
-            sheet = "Sheet2",
+            sheet = "Fig1b",
             na = "NA") %>%
   rename(country_name = country) %>%
-  janitor::clean_names()
+  janitor::clean_names() |> 
+  mutate(lsf_yield = pmax(0,ssf_lsf_yield - ssf_yield))
 
 portions_region_lookup <- portions_lsf_ssf %>%
   select(country_name, region) %>%
@@ -77,7 +116,7 @@ portions_region_lookup <- portions_lsf_ssf %>%
 
 
 zeroish_subsistence_europe <-
-  TRUE # treat missing as zero just for subsistence-based metrics in Europe
+  FALSE # treat missing as zero just for subsistence-based metrics in Europe
 
 if (zeroish_subsistence_europe) {
   subsistence_columns <- str_detect(colnames(data), "subsistence")
@@ -88,37 +127,20 @@ if (zeroish_subsistence_europe) {
 }
 
 
-#| label: calc-metrics
-
 # need to get the portions data wrangled into the same format
-portions_ssf_metrics <- portions_lsf_ssf %>%
-  pivot_wider(names_from = ssf_lsf, values_from = daily_portions)
+# portions_ssf_metrics <- portions_lsf_ssf %>%
+#   pivot_wider(names_from = ssf_lsf, values_from = daily_portions)
 
 data <- data %>%
-  left_join(portions_ssf_metrics, by = c("country_name", "region"))
+  left_join(portions_lsf_ssf, by = c("iso3code" = "country_name" , "region"))
 
 
-# an alternative to `sum` where returns NA if all elements of sum are NA
-altsum <- function(..., na.rm = TRUE) {
-  components <- list(...)
-  
-  components <- map_dbl(components,  ~ .x)
-  
-  if (all(is.na(components))) {
-    out <- NA
-  } else {
-    out <- sum(components, na.rm = na.rm)
-  }
-  
-  return(out)
-  
-}
 
 # generate metrics used in report
 metrics <-  data %>%
   rowwise() %>%
   mutate(
-    ssf_v_portions = SSF / altsum(LSF, SSF, na.rm = remove_na),
+    ssf_v_portions = ssf_yield / altsum(ssf_yield, lsf_yield, na.rm = remove_na),
     ssf_employment = altsum(
       preharvest_ssf,
       harvest_inland_ssf,
@@ -267,7 +289,7 @@ get_consistent_totals <-
           trading_lsf_w,
           na.rm = remove_na
         ),
-        ssf_v_portions = SSF / altsum(LSF, SSF, na.rm = remove_na),
+        ssf_v_portions = ssf_yield / altsum(ssf_yield, lsf_yield), # calculate LSF and set to 0 when negative
         ssf_v_total_employment =  ssf_employment / altsum(ssf_employment, lsf_employment),
         ssf_v_women_employment = ssf_employment_w / altsum(ssf_employment_w, lsf_employment_w),
         ssf_v_livelihood = altsum(dependent_subsistence_ssf_part ,  dependent_ssf_part) / sum(
@@ -365,21 +387,51 @@ write_csv(total_metrics, file = file.path(fig_dir, "total_metrics.csv"))
 catch_data <- data |>
   select(country_name, region, catch, contains("catch_ssf"))
 
-un_region_ssf_catch <- catch_data %>%
+
+sigh <- data |> 
+  select(iso3code,region) |> 
+  unique()
+
+n_countries_per_region <- mike_country |> 
+  left_join(sigh, by = c("country_name" = "iso3code")) |> 
+  filter(!is.na(catch_ssf)) |> 
+  group_by(region) |> 
+  count()
+
+un_region_ssf_catch <- mike_global %>%
+  mutate(summed_pred_catch = summed_pred_catch / 1e6) |> 
+  filter(region != "global") |>
+  select(region, source, summed_pred_catch) |>
+  pivot_wider(names_from = source,
+              values_from = summed_pred_catch,
+              names_prefix = "catch_ssf_") |>
+  mutate(catch_ssf = catch_ssf_marine + catch_ssf_inland) |>
   group_by(region) %>%
-  mutate(has_data = !is.na(catch_ssf)) |>
-  mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
+  # mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
   summarise(
     ssf_catch = sum(catch_ssf, na.rm = TRUE),
     ssf_catch_marine =  sum(catch_ssf_marine, na.rm = TRUE),
-    ssf_catch_inland =  sum(catch_ssf_inland, na.rm = TRUE),
-    p_marine = mean(
-      catch_ssf_marine / (catch_ssf_inland + catch_ssf_marine + 1e-9),
-      na.rm = TRUE
-    ),
-    n = n_distinct(country_name[has_data])
+    ssf_catch_inland =  sum(catch_ssf_inland, na.rm = TRUE)
   )  |>
-  filter(!is.na(region))
+  mutate(p_marine = ssf_catch_marine / ssf_catch) |> 
+  left_join(n_countries_per_region, by = "region")
+
+
+# un_region_ssf_catch <- catch_data %>%
+#   group_by(region) %>%
+#   mutate(has_data = !is.na(catch_ssf)) |>
+#   mutate(across(starts_with("catch_ssf"), ~ ifelse(is.na(.x), 0, .x))) |> # this is needed to calculate p_marine
+#   summarise(
+#     ssf_catch = sum(catch_ssf, na.rm = TRUE),
+#     ssf_catch_marine =  sum(catch_ssf_marine, na.rm = TRUE),
+#     ssf_catch_inland =  sum(catch_ssf_inland, na.rm = TRUE),
+#     p_marine = mean(
+#       catch_ssf_marine / (catch_ssf_inland + catch_ssf_marine + 1e-9),
+#       na.rm = TRUE
+#     ),
+#     n = n_distinct(country_name[has_data])
+#   )  |>
+#   filter(!is.na(region))
 
 
 # write_csv(catch_data, file = file.path(fig_dir, "catch_data.csv"))
@@ -414,7 +466,6 @@ emp_un_region_totals <- metrics %>%
 
 write_csv(emp_un_region_totals, file = file.path(fig_dir, "emp_un_region_totals.csv"))
 
-
 live_un_region_totals <- metrics %>%
   group_by(region) %>%
   mutate(has_data = !is.na(ssf_livelihoods)) |>
@@ -427,5 +478,23 @@ live_un_region_totals <- metrics %>%
   filter(!is.na(region))
 
 write_csv(live_un_region_totals, file = file.path(fig_dir, "live_un_region_totals.csv"))
+
+countries_per_region <- data %>%
+  group_by(region) %>%
+  count(name = "pool")
+
+write_csv(countries_per_region, file = file.path(fig_dir, "countries_per_region.csv"))
+
+catches <- data |>
+  select(region, country_name, catch)
+
+write_csv(catches, file = file.path(fig_dir, "catches.csv"))
+
+
+regional_catches <- data |>
+  group_by(region) |>
+  summarise(total_catch = sum(catch, na.rm = TRUE))
+
+write_csv(regional_catches, file = file.path(fig_dir, "regional_catches.csv"))
 
 

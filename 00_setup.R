@@ -54,7 +54,7 @@ cartoify <- FALSE
 
 plot_pies <- TRUE
 
-pie_size <- 110
+pie_size <- 100
 
 plot_width = 6
 
@@ -71,4 +71,20 @@ fig_dir <-
 
 if (!dir.exists(fig_dir)) {
   dir.create(fig_dir, recursive = TRUE)
+}
+
+# an alternative to `sum` where returns NA if all elements of sum are NA
+altsum <- function(..., na.rm = TRUE) {
+  components <- list(...)
+  
+  components <- map_dbl(components,  ~ .x)
+  
+  if (all(is.na(components))) {
+    out <- NA
+  } else {
+    out <- sum(components, na.rm = na.rm)
+  }
+  
+  return(out)
+  
 }
