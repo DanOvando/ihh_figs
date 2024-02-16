@@ -598,7 +598,7 @@ un_region_portions <- portions_marine_inland %>%
     regional_portions = sum(pop, na.rm = TRUE),
     regional_portions_marine =  sum(pop[marine], na.rm = TRUE),
     regional_portions_inland =  sum(pop[!marine], na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
+    n = sum(country_count[has_data])
   )
 
 #join together
@@ -718,14 +718,13 @@ ssf_contribution_countries <- long_metrics |>
 
 
 counts <- long_metrics %>%
-  left_join(catches, by = c("country_name", "region")) |>
+  # left_join(catches, by = c("country_name", "region")) |>
   group_by(region, metric) %>%
-  summarise(n = n_distinct(country_name),
-            sampled_catch = sum(catch, na.rm = TRUE)) |>
+  summarise(n = n_distinct(country_name)) |>
   ungroup() |>
   left_join(countries_per_region, by = "region") |>
-  left_join(regional_catches, by = "region") |>
-  mutate(prop_catch_represented = sampled_catch / total_catch) |>
+  # left_join(regional_catches, by = "region") |>
+  # mutate(prop_catch_represented = sampled_catch / total_catch) |>
   mutate(p = scales::percent(n / pool)) %>%
   mutate(label = p) |>
   mutate(label2 = paste0("N=", n))
@@ -733,7 +732,7 @@ counts <- long_metrics %>%
 counts |>
   ungroup() |>
   mutate(metric = str_remove_all(metric, "total_")) |>
-  select(region, metric, n, p, prop_catch_represented) |>
+  select(region, metric, n, p) |>
   arrange(metric, region) |>
   rename(
     "number_countries_with_data" = n,

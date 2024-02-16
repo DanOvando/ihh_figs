@@ -99,6 +99,37 @@ portions_marine_inland <-
   rename(country_name = country) %>%
   janitor::clean_names()
 
+which_is_which <-
+  read_xlsx(here("data", "pred obs catch by country table.xlsx"), skip = 1) |> 
+  janitor::clean_names() |> 
+  select(1:2) |> 
+  rename(country_name = country_1, case_study = x2) |> 
+  mutate(case_study = case_study == "CCS" ) 
+
+portions_marine_inland <- portions_marine_inland |> 
+  left_join(which_is_which, by = "country_name")
+
+cs <- portions_marine_inland |> 
+  filter(case_study) |> 
+  group_by(country_name) |> 
+  mutate(country_count = 1 / n_distinct(marine_inland_char)) |> 
+  ungroup()
+
+
+
+extrap <- portions_marine_inland |> 
+  filter(!case_study) |> 
+  group_by(country_name) |> 
+  mutate(country_count = 1 / n_distinct(marine_inland_char)) |> 
+  group_by(marine_inland_char,region) |> 
+  summarise(pop = sum(pop),
+            country_count = sum(country_count)) |> 
+  mutate(country_name = "extrapolated")
+  
+portions_marine_inland <- cs |> 
+  bind_rows(extrap) |> 
+  select(-case_study)
+
 write_csv(portions_marine_inland, file = file.path(fig_dir, "portions_marine_inland.csv"))
 
 
@@ -475,7 +506,8 @@ live_un_region_totals <- metrics %>%
     ssf_live_marine =  sum(ssf_livelihoods, na.rm = TRUE),
     n = n_distinct(country_name[has_data])
   ) %>%
-  filter(!is.na(region))
+  filter(!is.na(region)) |> 
+  mutate(message = "ignore _inland and _marine values, they are a coding artifact")
 
 write_csv(live_un_region_totals, file = file.path(fig_dir, "live_un_region_totals.csv"))
 
@@ -488,13 +520,14 @@ write_csv(countries_per_region, file = file.path(fig_dir, "countries_per_region.
 catches <- data |>
   select(region, country_name, catch)
 
-write_csv(catches, file = file.path(fig_dir, "catches.csv"))
+# write_csv(catches, file = file.path(fig_dir, "catches.csv"))
 
 
-regional_catches <- data |>
-  group_by(region) |>
-  summarise(total_catch = sum(catch, na.rm = TRUE))
+# regional_catches <- data |>
+#   group_by(region) |>
+#   summarise(total_catch = sum(catch, na.rm = TRUE))
+# 
+# write_csv(regional_catches, file = file.path(fig_dir, "regional_catches.csv"))
 
-write_csv(regional_catches, file = file.path(fig_dir, "regional_catches.csv"))
 
 
