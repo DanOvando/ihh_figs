@@ -12,7 +12,6 @@ walk(result_files, ~ assign(.x, read_csv(file.path(
   fig_dir, paste0(.x, ".csv")
 )), envir = .GlobalEnv))
 
-
 countries <-
   rnaturalearth::ne_download(
     category = "cultural",
@@ -107,7 +106,8 @@ map_foo <-
            legend_position = c(0.65, 1.1)) {
     centroids <- centroids %>%
       mutate(X = ifelse(region_un == "Europe", X / 3, X),
-             metric = subtitle)
+             metric = subtitle) |> 
+      mutate(Y = ifelse(region_un == "Americas", Y / 2, Y))
     
     carto_map$metric <- subtitle
     
@@ -251,13 +251,13 @@ map_foo <-
         legend.title.align = 1,
         legend.title = element_text(size = 8),
         legend.text = element_text(size = 6),
-        plot.subtitle = element_text(size = 12)
+        plot.subtitle = element_text(size = 2)
       ) +
       facet_wrap(~ metric, strip.position = "left") +
       theme(
         strip.placement = "outside",
         strip.background = element_blank(),
-        strip.text = element_text(size = 11, color = "black")
+        strip.text = element_text(size = 9, color = "black")
       )
     
     
@@ -567,7 +567,6 @@ pies <- centroids %>%
 simple_livelihoods_centroids <- pies |>
   select(region_un, X, Y, ssf_live, p_marine, n)
 
-
 live_map_plot <-
   map_foo(
     fill_var = ssf_live,
@@ -589,16 +588,17 @@ live_map_plot <-
 
 un_region_portions <- portions_marine_inland %>%
   mutate(
-    marine = tolower(marine_inland) == "marine",
-    daily_portions_domestic = daily_portions_domestic / 1e6
+    pop = pop / 1e9,
+    marine = tolower(marine_inland_char) == "marine",
+    daily_portions_domestic = pop
   ) %>%
   group_by(region) %>%
-  mutate(has_data = !is.na(daily_portions_domestic)) |>
+  mutate(has_data = !is.na(pop)) |>
   summarise(
-    regional_portions = sum(daily_portions_domestic, na.rm = TRUE),
-    regional_portions_marine =  sum(daily_portions_domestic[marine], na.rm = TRUE),
-    regional_portions_inland =  sum(daily_portions_domestic[!marine], na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
+    regional_portions = sum(pop, na.rm = TRUE),
+    regional_portions_marine =  sum(pop[marine], na.rm = TRUE),
+    regional_portions_inland =  sum(pop[!marine], na.rm = TRUE),
+    n = sum(country_count[has_data])
   )
 
 #join together
@@ -661,7 +661,7 @@ nuts_map_plot <-
     carto_map = un_region_portions_carto,
     pies = plot_pies,
     show_legend = TRUE,
-    units = "million people",
+    units = "billion people",
     legend_position = c(0.15,-0.05)
   ) +
   theme(plot.title = element_text(hjust = 0, vjust = 1))
@@ -685,7 +685,10 @@ total_metric_lines <- total_metrics %>%
                names_to = "metric",
                values_to = "total") %>%
   mutate(metric = str_remove_all(metric, "(ssf_v_)|total_")) %>%
-  mutate(metric = fct_relevel(metric, "catch", "employment", "women_employment"))
+  mutate(metric = fct_relevel(metric, "catch","portions","women_employment", "employment", "livelihood")) 
+  
+  # mutate(metric = fct_relevel(metric, "catch", "employment", "women_employment"))
+
 metric_means <- long_metrics %>%
   group_by(metric) %>%
   summarise(mv = mean(value, na.rm = TRUE)) %>%
@@ -709,41 +712,19 @@ region_metric_means <- long_metrics %>%
   ungroup() %>%
   arrange(metric)
 
-countries_per_region <- data %>%
-  group_by(region) %>%
-  count(name = "pool")
-
-
 ssf_contribution_countries <- long_metrics |>
   select(country_name, region) |>
   unique()
 
 
-ssf_contributions_catch_comp <- data |>
-  mutate(in_ssf_contrib = country_name %in% ssf_contribution_countries$country_name) |>
-  group_by(region) |>
-  summarise(
-    ssf_contrib_catch = sum(catch[in_ssf_contrib], na.rm = TRUE),
-    total_catch = sum(catch, na.rm = TRUE)
-  )
-
-
-catches <- data |>
-  select(region, country_name, catch)
-
-regional_catches <- data |>
-  group_by(region) |>
-  summarise(total_catch = sum(catch, na.rm = TRUE))
-
 counts <- long_metrics %>%
-  left_join(catches, by = c("country_name", "region")) |>
+  # left_join(catches, by = c("country_name", "region")) |>
   group_by(region, metric) %>%
-  summarise(n = n_distinct(country_name),
-            sampled_catch = sum(catch, na.rm = TRUE)) |>
+  summarise(n = n_distinct(country_name)) |>
   ungroup() |>
   left_join(countries_per_region, by = "region") |>
-  left_join(regional_catches, by = "region") |>
-  mutate(prop_catch_represented = sampled_catch / total_catch) |>
+  # left_join(regional_catches, by = "region") |>
+  # mutate(prop_catch_represented = sampled_catch / total_catch) |>
   mutate(p = scales::percent(n / pool)) %>%
   mutate(label = p) |>
   mutate(label2 = paste0("N=", n))
@@ -751,7 +732,7 @@ counts <- long_metrics %>%
 counts |>
   ungroup() |>
   mutate(metric = str_remove_all(metric, "total_")) |>
-  select(region, metric, n, p, prop_catch_represented) |>
+  select(region, metric, n, p) |>
   arrange(metric, region) |>
   rename(
     "number_countries_with_data" = n,
@@ -763,9 +744,10 @@ counts |>
 ssf_hists_data <-  long_metrics %>%
   left_join(counts, by = c("region", "metric")) |>
   mutate(metric = str_remove_all(metric, "total_")) |>
-  mutate(metric = fct_relevel(metric, "catch", "portions", "employment", "livelihood")) |>
-  mutate(basic_region = region,
-         region = glue::glue("{region} {label}")) |>
+  # mutate(metric = fct_relevel(metric, "catch", "portions", "employment", "livelihood")) |>
+  mutate(metric = fct_relevel(metric, "catch","portions","women_employment", "employment", "livelihood")) |> 
+mutate(basic_region = region,
+         region = glue::glue("{region} {label2}")) |>
   mutate(region = (region),
          basic_region = fct_rev(basic_region)) |>
   mutate(value = pmin(1, value))
@@ -773,9 +755,10 @@ ssf_hists_data <-  long_metrics %>%
 ssf_regional_total_data <-  regional_total_metrics %>%
   left_join(counts, by = c("region", "metric")) |>
   mutate(metric = str_remove_all(metric, "total_")) |>
-  mutate(metric = fct_relevel(metric, "catch", "portions", "employment", "livelihood")) |>
+  # mutate(metric = fct_relevel(metric, "catch", "portions", "employment", "livelihood")) |>
+  mutate(metric = fct_relevel(metric, "catch","portions","women_employment", "employment", "livelihood")) |> 
   mutate(basic_region = region,
-         region = glue::glue("{region} {label}")) |>
+         region = glue::glue("{region} {label2}")) |>
   mutate(region = (region),
          basic_region = fct_rev(basic_region)) |>
   mutate(value = pmin(1, value))
@@ -884,7 +867,7 @@ region_color <- "gray30"
 
 hist_legend <- hist_legend |>
   ggplot(aes(label, thing, fill = label)) +
-  geom_col() +
+  geom_point() +
   scale_fill_manual(name = element_blank(),
                     values = c("tomato", region_color, country_color)) +
   theme(
@@ -892,10 +875,87 @@ hist_legend <- hist_legend |>
     legend.text = element_text(size = 9),
     legend.key.size = unit(c(0.75), "lines"),
     legend.background = element_rect(fill = "transparent")
-  )
-
+  ) + 
+  guides(fill = guide_legend(override.aes = list(shape = 21, size = 4)))
 
 hist_legend <- as_ggplot(ggpubr::get_legend(hist_legend))
+
+labs <- seq(0, 1, by = 0.1)
+
+
+test <- cut(ssf_hists_data$value, breaks = labs)
+
+ssf_hists_data$test <- test
+
+
+pcr_data = ssf_hists_data |> 
+  group_by(country_name,basic_region, metric, test) |> 
+  count() |> 
+  group_by(basic_region, metric, test) |> 
+  summarise(n = sum(n)) |> 
+  ungroup() |> 
+  tidyr::complete(basic_region, metric, test, fill = list(n = 0)) |> 
+  left_join(ssf_hists_labels, by = c("basic_region", "metric")) |> 
+  group_by(plot_order, metric) |> 
+  mutate(p = n / sum(n)) |> 
+  ungroup() |> 
+  mutate(binheight = 1 / n_distinct(test)) |> 
+  ungroup()
+
+
+ssf_pcr_plot <- pcr_data |>
+  ggplot() +
+  geom_col(aes(plot_order, binheight, fill = p),
+           alpha = 1,
+           show.legend = FALSE,
+           width = 0.75) +
+  geom_hline(
+    data = total_metric_lines,
+    aes(yintercept = total),
+    linetype = 1,
+    color = "tomato",
+    linewidth = 3
+  )+
+  geom_point(data = ssf_regional_total_data,
+             aes(plot_order, value),
+             color = region_color,
+             size = 4) +
+  scale_fill_gradient(name = "% Countries",low = "transparent", high = country_color) +
+  scale_x_discrete(breaks = ssf_hists_labels$plot_order,
+                   labels = as.character(ssf_hists_labels$region)) +
+  scale_y_continuous(
+    name = "SSF share of total fisheries sector",
+    labels = scales::label_percent(accuracy = 1),
+    breaks = seq(0, 1, by = .2),
+    expand = expansion(mult = c(0,0.05))
+  ) +
+  facet_wrap(
+    ~ metric,
+    ncol = 1,
+    strip.position = "top",
+    scales = "free_y",
+    labeller = labeller(metric = ssf_labeler)
+  ) +
+  coord_flip() + 
+  theme(
+    legend.position = "right",
+    axis.title.y  = element_blank(),
+    plot.margin = ggplot2::unit(c(5, 5, 0, 0), "pt"),
+    strip.background = element_blank(),
+    axis.text.y = element_text(size = 8),
+    axis.line = element_line(color = "black", linetype = 1),
+    strip.text = element_blank()
+  ) +
+  labs(title = bquote( ~ bold("b") ~ "Relative contributions of SSF")) + 
+  inset_element(
+    hist_legend,
+    left = 0,
+    bottom = 1,
+    right = 1,
+    top = 1.05,
+    on_top = TRUE
+  )
+
 
 
 ssf_hists_plot <- ssf_hists_data %>%
@@ -960,11 +1020,69 @@ ssf_hists_plot <- ssf_hists_data %>%
     on_top = TRUE
   )
 
-a = data |>
-  filter(!is.na(region)) |>
-  group_by(region) |>
-  summarise(catch = sum(catch, na.rm = TRUE)) |>
-  arrange(catch)
+tmp <- ssf_hists_data |> 
+  select(country_name,basic_region, metric, value) |> 
+  pivot_wider(names_from = metric, values_from = value) |> 
+  arrange(desc(basic_region))
+
+write_csv(tmp, file.path(fig_dir, "country_ssf_contribution_data.csv"))
+
+write_csv(total_metric_lines |> rename(global_ssf_contribution = total), file.path(fig_dir, "global_ssf_contribution_data.csv"))
+
+write_csv(ssf_regional_total_data |> select(basic_region, metric, n,value) |> rename(regional_ssf_contribution = value), file.path(fig_dir, "regional_ssf_contribution_data.csv"))
+
+ssf_violin_plot <- ssf_hists_data %>%
+  ggplot(aes(plot_order, value)) +
+  geom_violin(
+    color = "transparent",
+    fill = country_color,
+    show.legend = FALSE,
+    scale = "area",
+    adjust = .33
+  ) +
+  geom_hline(
+    data = total_metric_lines,
+    aes(yintercept = total),
+    linetype = 1,
+    color = "tomato",
+    linewidth = 3
+  ) +
+  geom_point(data = ssf_regional_total_data,
+             color = region_color,
+             size = 4) +
+  labs(title = bquote( ~ bold("b") ~ "Relative contributions of SSF")) +
+  scale_y_continuous(
+    name = "SSF share of total fisheries sector",
+    labels = scales::label_percent(accuracy = 1),
+    breaks = seq(0, 1, by = .2)
+  ) +
+  scale_x_discrete(breaks = ssf_hists_labels$plot_order,
+                   labels = as.character(ssf_hists_labels$region)) +
+  scale_fill_manual(values = viridisLite::cividis(n = 5)[1:5]) +
+  facet_wrap(
+    ~ metric,
+    ncol = 1,
+    strip.position = "top",
+    scales = "free_y",
+    labeller = labeller(metric = ssf_labeler)
+  ) +
+  coord_flip() +
+  theme(
+    axis.title.y  = element_blank(),
+    plot.margin = ggplot2::unit(c(5, 5, 0, 0), "pt"),
+    strip.background = element_blank(),
+    axis.text.y = element_text(size = 8),
+    axis.line = element_line(color = "black", linetype = 1),
+    strip.text = element_blank()
+  ) +
+  inset_element(
+    hist_legend,
+    left = 0,
+    bottom = 1,
+    right = 1,
+    top = 1.05,
+    on_top = TRUE
+  )
 
 
 ssf_hists_fixed_order_plot <- ssf_hists_data %>%
@@ -1086,10 +1204,11 @@ if (plot_pies) {
 map_side <-
   (catch_map_plot + labs(title = bquote(
     ~ bold("a") ~ "Absolute contributions of SSF"
-  )) + theme(plot.title = element_text(hjust = 0, vjust = 1))) / nuts_map_plot / emp_map_plot / live_map_plot / w_map_plot
+  )) + theme(plot.title = element_text(hjust = 0, vjust = 1))) / nuts_map_plot / w_map_plot / emp_map_plot / live_map_plot
 
 
-hist_side = ssf_hists_plot
+
+hist_side = ssf_violin_plot
 
 
 
