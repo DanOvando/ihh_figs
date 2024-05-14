@@ -81,6 +81,14 @@ data <- readr::read_csv(here("data", "20240201_Employ_Livelih_Landvalue.csv")) %
 # warning("using old FAO catch data, fix this when Alba sends new ones")
   # read in data
 
+country_region_code_lookup <- data |> 
+  select(iso3code, country_name, region) |> 
+  unique() |> 
+  mutate(anon_iso3code = fct_anon(iso3code, prefix = "iso3code_"),
+         anon_country_name = fct_anon(country_name, prefix = "country_name_") )
+
+
+
 berhman <-
   st_crs(
     "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
