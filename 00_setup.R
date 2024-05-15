@@ -4,7 +4,7 @@ library(sf)
 
 library(rnaturalearth)
 
-library(rnaturalearthhires)
+# library(rnaturalearthhires)
 
 library(rnaturalearthdata)
 
@@ -46,7 +46,7 @@ if (!dir.exists("results")) {
 
 sf::sf_use_s2(FALSE)
 
-run_name <- "v1.0"
+run_name <- "v1.1"
 
 remove_na <- TRUE
 

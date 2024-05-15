@@ -1,8 +1,14 @@
 source("00_setup.R")
 
+
+
+
+
 # load data ---------------------------------------------------------------
 
 files <- list.files(fig_dir)
+
+
 
 result_files <-
   str_remove_all(files[str_detect(files, ".csv$")], ".csv") # read in CSVs
@@ -713,14 +719,14 @@ region_metric_means <- long_metrics %>%
   arrange(metric)
 
 ssf_contribution_countries <- long_metrics |>
-  select(country_name, region) |>
+  select(anon_country_name, region) |>
   unique()
 
 
 counts <- long_metrics %>%
   # left_join(catches, by = c("country_name", "region")) |>
   group_by(region, metric) %>%
-  summarise(n = n_distinct(country_name)) |>
+  summarise(n = n_distinct(anon_country_name)) |>
   ungroup() |>
   left_join(countries_per_region, by = "region") |>
   # left_join(regional_catches, by = "region") |>
@@ -889,7 +895,7 @@ ssf_hists_data$test <- test
 
 
 pcr_data = ssf_hists_data |> 
-  group_by(country_name,basic_region, metric, test) |> 
+  group_by(anon_country_name,basic_region, metric, test) |> 
   count() |> 
   group_by(basic_region, metric, test) |> 
   summarise(n = sum(n)) |> 
@@ -1021,7 +1027,7 @@ ssf_hists_plot <- ssf_hists_data %>%
   )
 
 tmp <- ssf_hists_data |> 
-  select(country_name,basic_region, metric, value) |> 
+  select(anon_country_name,basic_region, metric, value) |> 
   pivot_wider(names_from = metric, values_from = value) |> 
   arrange(desc(basic_region))
 
