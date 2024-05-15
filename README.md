@@ -1,4 +1,4 @@
-# Make Small-Scale Fisheries Figures
+# Make IHH Figures and Tables
 
 The code presented here downloads and processes the publicly available processed data that is used to generate the main figure for the paper "Illuminating the multi-dimensional contributions of small-scale fisheries" by Basurto & Gutierrez *et al.* In Review.
 
