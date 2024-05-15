@@ -4,7 +4,7 @@ library(sf)
 
 library(rnaturalearth)
 
-library(rnaturalearthhires)
+# library(rnaturalearthhires)
 
 library(rnaturalearthdata)
 

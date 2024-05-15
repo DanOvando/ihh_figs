@@ -10,8 +10,10 @@ For general audience users
 
 `renv::restore()`
 
-2. Run 02_make_ssf_figs.R. 
+2. Run 01_make_ssf_data.R
 
-3. Run 03_make_devolved_rights_fig.R
+3. Run 02_make_ssf_figs.R. 
+
+4. Run 03_make_devolved_rights_fig.R
 
 4. The resulting figures and tables will be located in the results/{your run name}/{NAs are treated as zero} folder
