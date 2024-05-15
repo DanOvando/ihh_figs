@@ -1,0 +1,6 @@
+region,ssf_live,ssf_live_inland,ssf_live_marine,n,message
+Africa,59.567678740000005,59.567678740000005,59.567678740000005,53,"ignore _inland and _marine values, they are a coding artifact"
+Americas,17.68564163,17.68564163,17.68564163,33,"ignore _inland and _marine values, they are a coding artifact"
+Asia,403.88558323999996,403.88558323999996,403.88558323999996,49,"ignore _inland and _marine values, they are a coding artifact"
+Europe,4.24384839,4.24384839,4.24384839,40,"ignore _inland and _marine values, they are a coding artifact"
+Oceania,6.357077980000001,6.357077980000001,6.357077980000001,12,"ignore _inland and _marine values, they are a coding artifact"
