@@ -1,138 +1,133 @@
 source("00_setup.R") #setup libraries etc.
 
 
-# load data ---------------------------------------------------------------
-message("built using data https://doi.org/10.5281/zenodo.8243546")
+# download data -----------------------------------------------------------
 
-countries <-
-  rnaturalearth::ne_download(
-    category = "cultural",
-    type = "map_units",
-    scale = 50,
-    returnclass = "sf",
-    destdir = "data"
-  ) %>%  # download cultural map units
-  sf::st_make_valid()
-
-countries <- countries %>%
-  filter(st_is_valid(countries)) # remove invalid countries for now
-
-land = rnaturalearth::ne_download(
-  category = "physical",
-  type = "land",
-  scale = 50,
-  returnclass = "sf"
-) # get borderless land
-
-ssu <- purrr::safely(sf::st_union)
+if (!dir.exists(here("data", "anon"))) {
+  dir.create(here("data", "anon"))
+  download.file(
+    "https://zenodo.org/api/records/11193156/files-archive",
+    file.path("data", "anon","test.zip"),
+    mode = "wb" # for windows users
+  )
+  
+  
+  unzip(file.path("data","anon","test.zip"), exdir = file.path("data","anon"))
+  
+  unlink( file.path("data", "anon","test.zip"))
+}
 
 # safely create union countries within each UN region to get just the UN region; would be better to just get the actual shapefile
-un_regions <- countries %>%
-  group_by(REGION_UN) %>%
-  nest() %>%
-  mutate(tmp = map(data, ssu)) %>%
-  mutate(worked = map_lgl(map(tmp, "error"), is.null)) %>%
-  filter(worked) %>%
-  mutate(geometry = map(tmp, "result")) %>%
-  select(-tmp) %>%
-  unnest(cols = geometry) %>%
-  ungroup() %>%
-  sf::st_as_sf() %>%
-  filter(sf::st_is_valid(.)) %>%
+
+# load data ---------------------------------------------------------------
+
+# mike_global <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "regional") |> 
+#   janitor::clean_names()
+
+mike_global <-read_csv(here("data","anon","anon_clean_mike_data_regional.csv")) |> 
   janitor::clean_names()
 
-mike_global <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "regional") |> 
-  janitor::clean_names()
+# mike_country <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "country") |> 
+#   janitor::clean_names() |> 
+#   rename(catch_ssf = ssf_catch_preferred_mix) |> 
+#   mutate(catch_ssf = catch_ssf / 1e6) |> 
+#   pivot_wider(names_from = "source", values_from = "catch_ssf", 
+#               names_prefix = "ssf_")
 
-mike_country <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "country") |> 
-  janitor::clean_names() |> 
-  rename(catch_ssf = ssf_catch_preferred_mix) |> 
-  mutate(catch_ssf = catch_ssf / 1e6) |> 
-  pivot_wider(names_from = "source", values_from = "catch_ssf", 
+mike_country <- read_csv(here("data", "anon", "anon_clean_mike_data_country.csv")) |>
+  janitor::clean_names() |>
+  rename(catch_ssf = ssf_catch_preferred_mix) |>
+  mutate(catch_ssf = catch_ssf / 1e6) |>
+  pivot_wider(names_from = "source",
+              values_from = "catch_ssf",
               names_prefix = "ssf_")
 
 
+# should_i_stay_or_should_i_go_now <-
+#   read_csv(here("data", "mike_catch_estimates_MM.csv")) |>
+#   select(country_name, contains("is_na"))
 
 should_i_stay_or_should_i_go_now <-
-  read_csv(here("data", "mike_catch_estimates_MM.csv")) |>
-  select(country_name, contains("is_na"))
+  read_csv(here("data","anon", "anon_mike_catch_estimates_MM.csv")) |>
+  select(anon_country_name, contains("is_na"))
 
 mike_country <- mike_country |> 
-  left_join(should_i_stay_or_should_i_go_now, by = "country_name") |> 
+  left_join(should_i_stay_or_should_i_go_now, by = "anon_country_name") |> 
   mutate(ssf_marine = if_else(is.na(ssf_marine) & !marine_na_is_na, 0,ssf_marine),
          ssf_inland = if_else(is.na(ssf_inland) & !inland_na_is_na, 0,ssf_inland)) |> 
   rowwise() |> 
   mutate(catch_ssf = altsum(ssf_marine, ssf_inland, na.rm = FALSE)) |> 
   ungroup() 
 
-old_data_headache <- readr::read_csv(here("data", "20230731IHH_global.csv")) %>%
-  janitor::clean_names() |> 
-  select(iso3code, catch) # read in data
-
-fishstat_catch <- readr::read_csv(here("data", "20240207_FAO_FishStat_Catch.csv")) %>%
-  janitor::clean_names() |> 
-  select(-country_name,-region)
+# 
+# fishstat_catch <- readr::read_csv(here("data", "20240207_FAO_FishStat_Catch.csv")) %>%
+#   janitor::clean_names() |> 
+#   select(-country_name,-region)
 
 
-data <- readr::read_csv(here("data", "20240201_Employ_Livelih_Landvalue.csv")) %>%
-  janitor::clean_names() |> 
-  left_join(mike_country, by = c("iso3code"  = "country_name")) |> 
-  left_join(fishstat_catch, by = "iso3code")
-# warning("using old FAO catch data, fix this when Alba sends new ones")
-  # read in data
+fishstat_catch <- readr::read_csv(here("data","anon", "anon_20240207_FAO_FishStat_Catch.csv")) %>%
+  janitor::clean_names() 
 
-country_region_code_lookup <- data |> 
-  select(iso3code, country_name, region) |> 
-  unique() |> 
-  mutate(anon_iso3code = fct_anon(iso3code, prefix = "iso3code_"),
-         anon_country_name = fct_anon(country_name, prefix = "country_name_") )
+# data <- readr::read_csv(here("data", "20240201_Employ_Livelih_Landvalue.csv")) %>%
+#   janitor::clean_names() |> 
+#   left_join(mike_country, by = c("iso3code"  = "country_name")) |> 
+#   left_join(fishstat_catch, by = "iso3code")
 
-
-
-berhman <-
-  st_crs(
-    "+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs"
-  ) # flat projected global distribution
+data <- readr::read_csv(here("data", "anon", "anon_20240201_Employ_Livelih_Landvalue.csv")) %>%
+  janitor::clean_names() |>
+  left_join(mike_country, by = c("anon_iso3code", "anon_country_name","region")) |>
+  left_join(fishstat_catch, by = c("anon_iso3code", "anon_country_name","region"))
 
 region_lookup <- data %>%
-  select(country_name, region) %>%
+  select(anon_country_name, region) %>%
   unique()
 
 nutrition_name <- "Figure1_nutrition_data.xlsx"
 
+# portions_marine_inland <-
+#   read_xlsx(here("data", nutrition_name),
+#             sheet = "Fig1a",
+#             na = "NA") %>%
+#   rename(country_name = country) %>%
+#   janitor::clean_names()
+
 portions_marine_inland <-
-  read_xlsx(here("data", nutrition_name),
-            sheet = "Fig1a",
-            na = "NA") %>%
-  rename(country_name = country) %>%
+  read_csv(here("data","anon", "anon_Figure1_nutrition_data_fig1a.csv")) %>%
   janitor::clean_names()
 
+
+# which_is_which <-
+#   read_xlsx(here("data", "pred obs catch by country table.xlsx"), skip = 1) |> 
+#   janitor::clean_names() |> 
+#   select(1:2) |> 
+#   rename(country_name = country_1, case_study = x2) |> 
+#   mutate(case_study = case_study == "CCS" ) 
+
 which_is_which <-
-  read_xlsx(here("data", "pred obs catch by country table.xlsx"), skip = 1) |> 
+  read_csv(here("data", "anon","anon_pred_obs_catch_by_country_table.csv")) |> 
   janitor::clean_names() |> 
-  select(1:2) |> 
-  rename(country_name = country_1, case_study = x2) |> 
   mutate(case_study = case_study == "CCS" ) 
 
 portions_marine_inland <- portions_marine_inland |> 
-  left_join(which_is_which, by = "country_name")
+  left_join(which_is_which, by = c("anon_country_name", "anon_iso3code", "region"))
 
 cs <- portions_marine_inland |> 
   filter(case_study) |> 
-  group_by(country_name) |> 
+  group_by(anon_country_name) |> 
   mutate(country_count = 1 / n_distinct(marine_inland_char)) |> 
-  ungroup()
+  ungroup() |> 
+  mutate(extrapolated = FALSE)
 
 
 
 extrap <- portions_marine_inland |> 
   filter(!case_study) |> 
-  group_by(country_name) |> 
+  group_by(anon_country_name) |> 
   mutate(country_count = 1 / n_distinct(marine_inland_char)) |> 
   group_by(marine_inland_char,region) |> 
   summarise(pop = sum(pop),
             country_count = sum(country_count)) |> 
-  mutate(country_name = "extrapolated")
+  mutate(extrapolated = TRUE)
   
 portions_marine_inland <- cs |> 
   bind_rows(extrap) |> 
@@ -141,16 +136,21 @@ portions_marine_inland <- cs |>
 write_csv(portions_marine_inland, file = file.path(fig_dir, "portions_marine_inland.csv"))
 
 
+# portions_lsf_ssf <-
+#   read_xlsx(here("data", nutrition_name),
+#             sheet = "Fig1b",
+#             na = "NA") %>%
+#   rename(country_name = country) %>%
+#   janitor::clean_names() |> 
+#   mutate(lsf_yield = pmax(0,ssf_lsf_yield - ssf_yield))
+
 portions_lsf_ssf <-
-  read_xlsx(here("data", nutrition_name),
-            sheet = "Fig1b",
-            na = "NA") %>%
-  rename(country_name = country) %>%
+  read_csv(here("data","anon", "anon_Figure1_nutrition_data_fig1b.csv")) %>%
   janitor::clean_names() |> 
   mutate(lsf_yield = pmax(0,ssf_lsf_yield - ssf_yield))
 
 portions_region_lookup <- portions_lsf_ssf %>%
-  select(country_name, region) %>%
+  select(anon_country_name, region) %>%
   unique()
 
 
@@ -171,7 +171,7 @@ if (zeroish_subsistence_europe) {
 #   pivot_wider(names_from = ssf_lsf, values_from = daily_portions)
 
 data <- data %>%
-  left_join(portions_lsf_ssf, by = c("iso3code" = "country_name" , "region"))
+  left_join(portions_lsf_ssf, by = c("anon_iso3code","anon_country_name" , "region"))
 
 
 
@@ -387,7 +387,7 @@ total_metrics <-
 # note crop_volume_tons reported as tons, per code book catch_ssf is in millions of MT, but looking at the data crop_volume_tons has to be in MMT
 
 long_metrics <- metrics %>%
-  select(country_name, region, starts_with("ssf_v")) %>%
+  select(anon_country_name, region, starts_with("ssf_v")) %>%
   pivot_longer(contains("ssf_v"), names_to = "metric", values_to = "value") %>%
   filter(!is.na(value), !is.na(region)) %>%
   mutate(metric = str_remove_all(metric, "ssf_v_")) %>%
@@ -424,15 +424,15 @@ write_csv(regional_total_metrics,
 write_csv(total_metrics, file = file.path(fig_dir, "total_metrics.csv"))
 
 catch_data <- data |>
-  select(country_name, region, catch, contains("catch_ssf"))
+  select(anon_country_name, region, catch, contains("catch_ssf"))
 
 
 sigh <- data |> 
-  select(iso3code,region) |> 
+  select(anon_iso3code,region) |> 
   unique()
 
 n_countries_per_region <- mike_country |> 
-  left_join(sigh, by = c("country_name" = "iso3code")) |> 
+  left_join(sigh, by = c("anon_iso3code", "region")) |> 
   filter(!is.na(catch_ssf)) |> 
   group_by(region) |> 
   count()
@@ -485,7 +485,7 @@ employment_w_un_region_totals <- metrics %>%
     ssf_employment_w = sum(ssf_employment_w, na.rm = TRUE),
     ssf_harvest_marine_w =  sum(harvest_marine_ssf_w, na.rm = TRUE),
     ssf_harvest_inland_w =  sum(harvest_inland_ssf_w, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
+    n = n_distinct(anon_country_name[has_data])
   ) %>%
   filter(!is.na(region))
 
@@ -499,7 +499,7 @@ emp_un_region_totals <- metrics %>%
     ssf_emp = sum(ssf_employment, na.rm  = TRUE),
     ssf_emp_inland =  sum(ssf_employment_inland, na.rm = TRUE),
     ssf_emp_marine =  sum(ssf_employment_marine, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
+    n = n_distinct(anon_country_name[has_data])
   ) %>%
   filter(!is.na(region))
 
@@ -512,7 +512,7 @@ live_un_region_totals <- metrics %>%
     ssf_live = sum(ssf_livelihoods, na.rm = TRUE),
     ssf_live_inland =  sum(ssf_livelihoods, na.rm = TRUE),
     ssf_live_marine =  sum(ssf_livelihoods, na.rm = TRUE),
-    n = n_distinct(country_name[has_data])
+    n = n_distinct(anon_country_name[has_data])
   ) %>%
   filter(!is.na(region)) |> 
   mutate(message = "ignore _inland and _marine values, they are a coding artifact")
@@ -526,7 +526,7 @@ countries_per_region <- data %>%
 write_csv(countries_per_region, file = file.path(fig_dir, "countries_per_region.csv"))
 
 catches <- data |>
-  select(region, country_name, catch)
+  select(region, anon_country_name, catch)
 
 # write_csv(catches, file = file.path(fig_dir, "catches.csv"))
 
