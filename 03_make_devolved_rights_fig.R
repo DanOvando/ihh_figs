@@ -3,7 +3,7 @@
 
 source("00_setup.R")
 
-devolved_rights <- read_excel(here("data", "Devolved_rights.xlsx"))
+devolved_rights <- read_excel(here("data","3_figure_governance", "Devolved_rights.xlsx"))
 
 devolved_rights$no_rights_catch <-
   devolved_rights$total_catch * devolved_rights$no_rights_per

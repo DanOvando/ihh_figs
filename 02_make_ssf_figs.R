@@ -661,7 +661,7 @@ simple_portion_centroids <- portion_centroids |>
 nuts_map_plot <-
   map_foo(
     fill_var = regional_portions,
-    subtitle = "Nutrient supply",
+    subtitle = "Micronutrient supply",
     centroids = portion_centroids,
     base_map = base_map,
     carto_map = un_region_portions_carto,

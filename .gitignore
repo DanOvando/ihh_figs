@@ -1,5 +1,6 @@
 # custom
 data/*
+old_data/*
 !data/Devolved_rights.xlsx
 *.zip
 !data/README
