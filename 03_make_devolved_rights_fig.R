@@ -3,7 +3,7 @@
 
 source("00_setup.R")
 
-devolved_rights <- read_excel(here("data","3_figure_governance", "Devolved_rights.xlsx"))
+devolved_rights <- read_excel(here("data","4_figure_governance", "Devolved_rights.xlsx"))
 
 devolved_rights$no_rights_catch <-
   devolved_rights$total_catch * devolved_rights$no_rights_per
@@ -62,7 +62,7 @@ devoloved_rights_plot <-
       paste0(x, "%")
   ) +
   
-  labs(x = "Tenure Rights", y = "Percentage of total catch", fill = "") +
+  labs(x = "Tenure rights", y = "Percentage of total SSF catch", fill = "") +
   
   geom_text(aes(label = paste0(percentage, "%")),
             position = position_dodge(width = 0.9),

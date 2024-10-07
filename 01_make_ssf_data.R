@@ -6,7 +6,7 @@ source("00_setup.R") #setup libraries etc.
 if (!dir.exists(here("data"))) {
   dir.create(here("data"))
   download.file(
-    "https://zenodo.org/api/records/13325056/files-archive",
+    "https://zenodo.org/api/records/13887065/files-archive",
     file.path("data","tmp.zip"),
     mode = "wb" # for windows users
   )
@@ -37,7 +37,8 @@ if (!dir.exists(here("data"))) {
 # mike_global <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "regional") |> 
 #   janitor::clean_names()
 
-mike_global <-read_csv(here("data","2_anon_figures","anon_figures_catch","anon_clean_mike_data_regional.csv")) |> 
+
+mike_global <-read_csv(here("data","3_anon_figures","anon_figures_catch","anon_clean_mike_data_regional.csv")) |> 
   janitor::clean_names()
 
 # mike_country <- readxl::read_xlsx(here("data","clean_mike_data.xlsx"), sheet = "country") |> 
@@ -47,7 +48,8 @@ mike_global <-read_csv(here("data","2_anon_figures","anon_figures_catch","anon_c
 #   pivot_wider(names_from = "source", values_from = "catch_ssf", 
 #               names_prefix = "ssf_")
 
-mike_country <- read_csv(here("data", "2_anon_figures","anon_figures_catch", "anon_clean_mike_data_country.csv")) |>
+
+mike_country <- read_csv(here("data", "3_anon_figures","anon_figures_catch", "anon_clean_mike_data_country.csv")) |>
   janitor::clean_names() |>
   rename(catch_ssf = ssf_catch_preferred_mix) |>
   mutate(catch_ssf = catch_ssf / 1e6) |>
@@ -61,7 +63,7 @@ mike_country <- read_csv(here("data", "2_anon_figures","anon_figures_catch", "an
 #   select(country_name, contains("is_na"))
 
 should_i_stay_or_should_i_go_now <-
-  read_csv(here("data","2_anon_figures","anon_figures_catch", "anon_mike_catch_estimates_MM.csv")) |>
+  read_csv(here("data","3_anon_figures","anon_figures_catch", "anon_mike_catch_estimates_MM.csv")) |>
   select(anon_country_name, contains("is_na"))
 
 mike_country <- mike_country |> 
@@ -78,7 +80,8 @@ mike_country <- mike_country |>
 #   select(-country_name,-region)
 
 
-fishstat_catch <- readr::read_csv(here("data","2_anon_figures","anon_figures_catch", "anon_20240207_FAO_FishStat_Catch.csv")) %>%
+
+fishstat_catch <- readr::read_csv(here("data","3_anon_figures","anon_figures_catch", "anon_20240207_FAO_FishStat_Catch.csv")) %>%
   janitor::clean_names() 
 
 # data <- readr::read_csv(here("data", "20240201_Employ_Livelih_Landvalue.csv")) %>%
@@ -89,7 +92,7 @@ fishstat_catch <- readr::read_csv(here("data","2_anon_figures","anon_figures_cat
 data <- readr::read_csv(
   here(
     "data",
-    "2_anon_figures",
+    "3_anon_figures",
     "anon_figures_employment_landed_value",
     "anon_20240201_Employ_Livelih_Landvalue.csv"
   )
@@ -114,7 +117,7 @@ nutrition_name <- "Figure1_nutrition_data.xlsx"
 #   janitor::clean_names()
 
 portions_marine_inland <-
-  read_csv(here("data","2_anon_figures","anon_figures_nutrition", "anon_Figure1_nutrition_data_fig1a.csv")) %>%
+  read_csv(here("data","3_anon_figures","anon_figures_nutrition", "anon_Figure1_nutrition_data_fig1a.csv")) %>%
   janitor::clean_names()
 
 
@@ -126,7 +129,7 @@ portions_marine_inland <-
 #   mutate(case_study = case_study == "CCS" ) 
 
 which_is_which <-
-  read_csv(here("data","2_anon_figures","anon_figures_catch" ,"anon_pred_obs_catch_by_country_table.csv")) |> 
+  read_csv(here("data","3_anon_figures","anon_figures_catch" ,"anon_pred_obs_catch_by_country_table.csv")) |> 
   janitor::clean_names() |> 
   mutate(case_study = case_study == "CCS" ) 
 
@@ -167,7 +170,7 @@ write_csv(portions_marine_inland, file = file.path(fig_dir, "portions_marine_inl
 #   mutate(lsf_yield = pmax(0,ssf_lsf_yield - ssf_yield))
 
 portions_lsf_ssf <-
-  read_csv(here("data","2_anon_figures","anon_figures_nutrition", "anon_Figure1_nutrition_data_fig1b.csv")) %>%
+  read_csv(here("data","3_anon_figures","anon_figures_nutrition", "anon_Figure1_nutrition_data_fig1b.csv")) %>%
   janitor::clean_names() |> 
   mutate(lsf_yield = pmax(0,ssf_lsf_yield - ssf_yield))
 
