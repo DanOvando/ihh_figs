@@ -61,6 +61,9 @@ un_regions <- countries %>%
 
 
 # function to make pie charts (or bar charts later as desired) of proportion of catch from inland vs. marine
+
+# slice_colors =  c("grey1", "grey50")
+#  slice_colors =  c("salmon3", "skyblue")
 make_pies <-
   function(un_region,
            data,
@@ -1251,7 +1254,8 @@ ggsave(
   total_plot,
   width = 180,
   height = 170,
-  units = "mm"
+  units = "mm",
+  device = cairo_pdf
 )
 
 
